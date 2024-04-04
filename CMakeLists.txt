@@ -42,3 +42,5 @@ add_executable(OpenRTMTestIn OpenRTMTestIn.cpp OpenRTMTransportBase.h)
 target_link_libraries(OpenRTMTestIn ${OPENRTM_LIBRARIES})
 add_executable(OpenRTMTestOut OpenRTMTestOut.cpp OpenRTMTransportBase.h)
 target_link_libraries(OpenRTMTestOut ${OPENRTM_LIBRARIES})
+
+install(TARGETS OpenRTMTestIn COMPONENT component)
