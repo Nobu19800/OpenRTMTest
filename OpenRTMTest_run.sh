@@ -4,7 +4,7 @@ max_count=100
 conf=configOpenRTM.txt
 recv_port=2809
 recv_host=127.0.0.1
-recv_name=OpenRTMTest0
+recv_name=OpenRTMTestIn0
 server_sleep_time=5000000000
 wait_time=1000000000
 
