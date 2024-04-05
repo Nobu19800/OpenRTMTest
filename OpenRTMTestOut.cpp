@@ -540,6 +540,8 @@ bool connect(RTC::PortBase *port1_var, const std::string &recv_host, const int r
       prop["dataport.dataflow_type"] = "push";
       prop["dataport.interface_type"] = "corba_cdr";
       prop["dataport.subscription_type"] = "flush";
+      prop["dataport.buffer.length"] = "1";
+      prop["write.full_policy"] = "overwrite";
       if (RTC::RTC_OK == CORBA_RTCUtil::connect("test_connector", prop, port2_var.in(), port1_var->getPortRef()))
       {
         return true;
