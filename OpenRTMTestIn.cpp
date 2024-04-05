@@ -324,11 +324,11 @@ public:
   std::vector<RecvData> &get_result();
 
 private:
-  bool m_mode;
   std::vector<RecvData> m_result;
   std::thread m_thread;
   RTC::TimedOctetSeq *m_out;
   RTC::OutPort<RTC::TimedOctetSeq> *m_outOut;
+  bool m_mode;
 };
 
 InDataListener::InDataListener(RTC::TimedOctetSeq *out, RTC::OutPort<RTC::TimedOctetSeq> *outOut, bool mode)
@@ -504,8 +504,9 @@ RTC::OutPort<RTC::TimedOctetSeq> *OpenRTMTestIn::getOutPort()
 int main(int argc, char *argv[])
 {
   bool mode = true;
+  std::string conffile("rtc.conf");
 
-  std::string output_file = "result_openrtm_in.txt";
+  std::string output_file("result_openrtm_in.txt");
 
   std::ifstream ifs;
   std::string filename;
@@ -585,13 +586,19 @@ int main(int argc, char *argv[])
           mode = true;
         }
       }
+      else if (v[0] == "rtc_conf_file")
+      {
+        conffile = v[1];
+      }
     }
   }
 
   std::cout << "start RTComponent and Manager" << std::endl;
 
   RTC::Manager *manager;
-  manager = RTC::Manager::init(argc, argv);
+  coil::vstring v_{ std::string("OpenRTMTestIn"), std::string("-f"), conffile };
+  coil::Argv argv_(v_);
+  manager = RTC::Manager::init(argv_.size(), argv_.get());
   manager->activateManager();
   manager->runManager(true);
 

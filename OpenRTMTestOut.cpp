@@ -562,11 +562,12 @@ int main(int argc, char *argv[])
   unsigned short recv_port = 2809;
   std::string recv_host("127.0.0.1");
   std::string recv_name("OpenRTMTestIn0");
+  std::string conffile("rtc.conf");
 
   uint32_t max_count = 1000;
   uint64_t data_size = 40;
   uint64_t rate = 1000000;
-  std::string output_file = "result_openrtm_in.txt";
+  std::string output_file("result_openrtm_in.txt");
   unsigned int wait_time = 1000000000;
   bool shutdown = false;
 
@@ -690,13 +691,19 @@ int main(int argc, char *argv[])
       {
         output_file = v[1];
       }
+      else if (v[0] == "rtc_conf_file")
+      {
+        conffile = v[1];
+      }
     }
   }
 
   std::cout << "start RTComponent and Manager" << std::endl;
 
   RTC::Manager *manager;
-  manager = RTC::Manager::init(argc, argv);
+  coil::vstring v_{ std::string("OpenRTMTestOut"), std::string("-f"), conffile };
+  coil::Argv argv_(v_);
+  manager = RTC::Manager::init(argv_.size(), argv_.get());
   manager->activateManager();
   manager->runManager(true);
 
