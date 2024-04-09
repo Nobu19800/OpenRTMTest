@@ -738,7 +738,7 @@ int main(int argc, char *argv[])
   OutDataListener *datalistener = new OutDataListener();
 
   inIn->addConnectorDataListener(RTC::ConnectorDataListenerType::ON_BUFFER_WRITE,
-                                datalistener);
+                                datalistener, false);
 
   if (!connect(outOut, recv_host, recv_port, recv_name, std::string("in")))
   {
@@ -839,6 +839,7 @@ int main(int argc, char *argv[])
     writing_file.close();
   }
 
+  delete datalistener;
   std::cout << "finish" << std::endl;
 
   // delete out;

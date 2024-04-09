@@ -630,7 +630,7 @@ int main(int argc, char *argv[])
   InDataListener *datalistener = new InDataListener(out, outOut, mode);
 
   inIn->addConnectorDataListener(RTC::ConnectorDataListenerType::ON_BUFFER_WRITE,
-                                datalistener);
+                                datalistener, false);
 
   std::cout << "wait" << std::endl;
   manager->join();
@@ -651,6 +651,7 @@ int main(int argc, char *argv[])
   writing_file.close();
   */
 
+  delete datalistener;
   std::cout << "finish" << std::endl;
 
   // delete in;
