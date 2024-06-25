@@ -575,7 +575,7 @@ RTC::OutPort<RTC::TimedOctetSeq>* OpenRTMTestOut::getOutPort()
 
 int createData(const std::string& send_host, const std::string& send_name, unsigned short send_port, char* buf)
 {
-	memset(buf, 0, sizeof(buf));
+	
 	struct UDPDataHeader* udph = (struct UDPDataHeader*)&buf[0];
 
 	if (send_host.empty()|| send_host.empty())
@@ -860,7 +860,7 @@ int main(int argc, char *argv[])
 		addr.sin_port = htons(udp_port);
 #endif
 		char buf[100];
-
+		std::memset(buf, 0, sizeof(buf));
 		int size = createData(send_host, send_name, send_port, buf);
 
 		if (!shutdown)
@@ -893,6 +893,7 @@ int main(int argc, char *argv[])
 		}
 		else
 		{
+			std::memset(buf, 0, sizeof(buf));
 			int size = createData("", "", 0, buf);
 			sendto(sock, buf, size, 0, (struct sockaddr *)&addr, sizeof(addr));
 #ifdef WIN32
