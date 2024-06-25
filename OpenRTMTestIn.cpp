@@ -523,6 +523,7 @@ RTC::OutPort<RTC::TimedOctetSeq> *OpenRTMTestIn::getOutPort()
 
 int connect(char* buf, RTC::Manager* manager, RTC::InPortBase* inIn, RTC::OutPortBase* outOut)
 {
+	std::cout << "connect" << std::endl;
 	int pos = 0;
 	struct UDPDataHeader* udph = (struct UDPDataHeader*)&buf[0];
 
@@ -542,16 +543,9 @@ int connect(char* buf, RTC::Manager* manager, RTC::InPortBase* inIn, RTC::OutPor
 	std::memcpy(comp, &buf[pos], udph->comp_length);
 	std::string comp_str(comp);
 
-	bool ret = false;
-	try
-	{
-		ret = port_connect(inIn, address_str, udph->port, comp_str, std::string("out"));
-	}
-	catch (...)
-	{
-		ret = port_connect(inIn, address_str, udph->port, comp_str, std::string("out"));
-	}
-	if (!ret)
+
+
+	if (!port_connect(inIn, address_str, udph->port, comp_str, std::string("out")))
 	{
 		std::cout << "connect error" << std::endl;
 		manager->terminate();
@@ -559,17 +553,7 @@ int connect(char* buf, RTC::Manager* manager, RTC::InPortBase* inIn, RTC::OutPor
 		return 1;
 	}
 
-	ret = false;
-	try
-	{
-		ret = port_connect(outOut, address_str, udph->port, comp_str, std::string("in"));
-	}
-	catch (...)
-	{
-		ret = port_connect(outOut, address_str, udph->port, comp_str, std::string("in"));
-	}
-
-	if (!ret)
+	if (!port_connect(outOut, address_str, udph->port, comp_str, std::string("in")))
 	{
 		std::cout << "connect error" << std::endl;
 		manager->terminate();

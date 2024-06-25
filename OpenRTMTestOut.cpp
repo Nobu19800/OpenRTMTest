@@ -813,6 +813,7 @@ int main(int argc, char *argv[])
 
 	if (!reverse_connect)
 	{
+		std::cout << "connect" << std::endl;
 		if (!port_connect(outOut, recv_host, recv_port, recv_name, std::string("in")))
 		{
 			std::cout << "connect error" << std::endl;
