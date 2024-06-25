@@ -871,7 +871,7 @@ int main(int argc, char *argv[])
 				{
 					sendto(sock, buf, size, 0, (struct sockaddr *)&addr, sizeof(addr));
 				}
-				std::this_thread::sleep_for(std::chrono::seconds(1));
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 				if (outConnectListener->get_info() && inConnectListener->get_info())
 				{
 					std::cout << "udp create connection" << std::endl;
