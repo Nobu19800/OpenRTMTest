@@ -25,6 +25,26 @@
 #include <rtm/ConnectorListener.h>
 
 #include "OpenRTMTransportBase.h"
+#include "UDPData.h"
+#include "OpenRTMSub.h"
+
+#ifdef WIN32
+#include <stdio.h>
+#include <iostream>
+#include <string>
+#include <WinSock2.h> 
+#include <Windows.h>
+#else
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#endif
+
+
 
 
 // <rtc-template block="component_description">
@@ -501,6 +521,47 @@ RTC::OutPort<RTC::TimedOctetSeq> *OpenRTMTestIn::getOutPort()
   return &m_outOut;
 }
 
+int connect(char* buf, RTC::Manager* manager, RTC::InPortBase* inIn, RTC::OutPortBase* outOut)
+{
+	int pos = 0;
+	struct UDPDataHeader* udph = (struct UDPDataHeader*)&buf[0];
+
+	if (udph->address_length == 0 && udph->comp_length == 0)
+	{
+		return 2;
+	}
+
+	pos += sizeof(struct UDPDataHeader);
+	char address[30];
+	std::memset(address, 0, sizeof(address));
+	std::memcpy(address, &buf[pos], udph->address_length);
+	pos += udph->address_length;
+	std::string address_str(address);
+	char comp[30];
+	std::memset(comp, 0, sizeof(address));
+	std::memcpy(comp, &buf[pos], udph->comp_length);
+	std::string comp_str(comp);
+
+
+
+	if (!port_connect(inIn, address_str, udph->port, comp_str, std::string("out")))
+	{
+		std::cout << "connect error" << std::endl;
+		manager->terminate();
+		manager->join();
+		return 1;
+	}
+
+	if (!port_connect(outOut, address_str, udph->port, comp_str, std::string("in")))
+	{
+		std::cout << "connect error" << std::endl;
+		manager->terminate();
+		manager->join();
+		return 1;
+	}
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
   bool mode = true;
@@ -510,6 +571,9 @@ int main(int argc, char *argv[])
 
   std::ifstream ifs;
   std::string filename;
+	bool reverse_connect = false;
+	int udp_port(50008);
+
   if (argc > 1)
   {
     filename = argv[1];
@@ -590,6 +654,15 @@ int main(int argc, char *argv[])
       {
         conffile = v[1];
       }
+			else if (v[0] == "reverse_connect")
+			{
+				reverse_connect = coil::toBool(v[1], "true", "false", false);
+			}
+			else if (v[0] == "udp_port")
+			{
+				std::istringstream sv(v[1]);
+				sv >> udp_port;
+			}
     }
   }
 
@@ -612,7 +685,9 @@ int main(int argc, char *argv[])
   if (comp == nullptr)
   {
     std::cerr << "Component create failed." << std::endl;
-    abort();
+		manager->terminate();
+		manager->join();
+		return 1;
   }
 
   OpenRTMTestIn *rtc = dynamic_cast<OpenRTMTestIn *>(comp);
@@ -620,7 +695,9 @@ int main(int argc, char *argv[])
   if (rtc == nullptr)
   {
     std::cerr << "Component create failed." << std::endl;
-    abort();
+		manager->terminate();
+		manager->join();
+		return 1;
   }
 
   RTC::OutPort<RTC::TimedOctetSeq> *outOut = rtc->getOutPort();
@@ -631,6 +708,74 @@ int main(int argc, char *argv[])
 
   inIn->addConnectorDataListener(RTC::ConnectorDataListenerType::ON_BUFFER_WRITE,
                                 datalistener, false);
+
+
+	if (reverse_connect)
+	{
+#ifdef WIN32
+		//WSAData wsaData;
+		//WSAStartup(MAKEWORD(2, 0), &wsaData);
+		int sock = socket(AF_INET, SOCK_DGRAM, 0);
+
+		struct sockaddr_in addr;
+		addr.sin_family = AF_INET;
+		addr.sin_port = htons(udp_port);
+		addr.sin_addr.S_un.S_addr = INADDR_ANY;
+		bind(sock, (struct sockaddr *)&addr, sizeof(addr));
+#else
+		int sock = socket(AF_INET, SOCK_DGRAM, 0);
+
+		struct sockaddr_in addr;
+		addr.sin_family = AF_INET;
+		addr.sin_addr.s_addr = INADDR_ANY;
+		addr.sin_port = htons(udp_port);
+		bind(sock, (const struct sockaddr *)&addr, sizeof(addr));
+#endif
+
+
+		char buf[100];
+
+		for (int i = 0; i < 500; i++)
+		{
+			memset(buf, 0, sizeof(buf));
+
+
+			recv(sock, buf, sizeof(buf), 0);
+
+			int ret = connect(&buf[0], manager, inIn, outOut);
+			if (ret == 1)
+			{
+				std::cerr << "UDP connection create failed." << std::endl;
+#ifdef WIN32
+				closesocket(sock);
+#else
+				close(sock);
+#endif
+				manager->terminate();
+				manager->join();
+				return 1;
+			}
+			else if (ret == 2)
+			{
+				std::cerr << "shutdown" << std::endl;
+#ifdef WIN32
+				closesocket(sock);
+#else
+				close(sock);
+#endif
+				manager->terminate();
+				manager->join();
+				return 0;
+			}
+		}
+#ifdef WIN32
+		closesocket(sock);
+		//WSACleanup();
+#else
+		close(sock);
+#endif
+
+	}
 
   std::cout << "wait" << std::endl;
   manager->join();

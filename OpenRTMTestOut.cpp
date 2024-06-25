@@ -26,6 +26,24 @@
 #include <rtm/CORBA_RTCUtil.h>
 
 #include "OpenRTMTransportBase.h"
+#include "UDPData.h"
+#include "OpenRTMSub.h"
+
+#ifdef WIN32
+#include <stdio.h>
+#include <iostream>
+#include <string>
+#include <WinSock2.h> 
+#include <Windows.h>
+#else
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#endif
 
 // <rtc-template block="component_description">
 /*!
@@ -309,6 +327,43 @@ public:
   double ret_time;
 };
 
+class OutConnListener
+	: public RTC::ConnectorListener
+{
+	USE_CONNLISTENER_STATUS;
+public:
+	OutConnListener(bool conlistener);
+	~OutConnListener() override;
+  ReturnCode operator()(RTC::ConnectorInfo& info) override;
+	bool get_info();
+private:
+	bool m_connected;
+	bool m_conlistener;
+};
+
+OutConnListener::OutConnListener(bool conlistener)
+	: m_connected(false), m_conlistener(conlistener)
+{
+
+}
+
+OutConnListener::~OutConnListener()
+{
+
+}
+
+OutConnListener::ReturnCode OutConnListener::operator()(RTC::ConnectorInfo& info)
+{
+	m_connected = m_conlistener;
+	return NO_CHANGE;
+
+}
+
+bool OutConnListener::get_info()
+{
+	return m_connected;
+}
+
 class OutDataListener
     : public RTC::ConnectorDataListenerT<RTC::TimedOctetSeq>
 {
@@ -518,45 +573,30 @@ RTC::OutPort<RTC::TimedOctetSeq>* OpenRTMTestOut::getOutPort()
   return &m_outOut;
 }
 
-bool connect(RTC::PortBase *port1_var, const std::string &recv_host, const int recv_port, const std::string &recv_name, const std::string &port_name)
+int createData(const std::string& send_host, const std::string& send_name, unsigned short send_port, char* buf)
 {
-  
-  std::string address = "rtcname://" + recv_host + ":" + coil::otos(recv_port) + "/*/" + recv_name + "." + port_name;
+	memset(buf, 0, sizeof(buf));
+	struct UDPDataHeader* udph = (struct UDPDataHeader*)&buf[0];
 
-  int max_count = 1000;
+	if (send_host.empty()|| send_host.empty())
+	{
+		udph->address_length = 0;
+		udph->comp_length = 0;
+		udph->port = 0;
+		return sizeof(struct UDPDataHeader);
+	}
 
-  for (int i = 0; i < max_count; i++)
-  {
+	udph->address_length = send_host.size();
+	udph->comp_length = send_name.size();
+	udph->port = send_port;
 
-    RTC::PortService_var port2_var = CORBA_RTCUtil::get_port_by_url(address);
+	int pos = sizeof(struct UDPDataHeader);
+	std::memcpy(&buf[pos], &send_host.c_str()[0], udph->address_length);
+	pos += udph->address_length;
+	std::memcpy(&buf[pos], &send_name.c_str()[0], udph->comp_length);
+	pos += udph->comp_length;
 
-    if (CORBA::is_nil(port2_var))
-    {
-      std::cout << "could not access " << address << std::endl;
-    }
-    else
-    {
-      coil::Properties prop;
-      prop["dataport.dataflow_type"] = "push";
-      prop["dataport.interface_type"] = "corba_cdr";
-      prop["dataport.subscription_type"] = "flush";
-      prop["dataport.buffer.length"] = "1";
-      prop["write.full_policy"] = "overwrite";
-      if (RTC::RTC_OK == CORBA_RTCUtil::connect("test_connector", prop, port2_var.in(), port1_var->getPortRef()))
-      {
-        return true;
-      }
-      else
-      {
-        std::cout << "could not access " << address << std::endl;
-        return false;
-      }
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  }
-
-  std::cout << "could not access " << address << std::endl;
-  return false;
+	return pos;
 }
 
 int main(int argc, char *argv[])
@@ -574,6 +614,11 @@ int main(int argc, char *argv[])
   bool shutdown = false;
 
   unsigned long server_sleep_time = 5000000000;
+	bool reverse_connect = false;
+	std::string send_host("127.0.0.1");
+	std::string send_name("OpenRTMTestOut0");
+	unsigned short send_port = 2809;
+	unsigned short udp_port(50008);
 
   std::ifstream ifs;
   std::string filename;
@@ -697,6 +742,28 @@ int main(int argc, char *argv[])
       {
         conffile = v[1];
       }
+			else if (v[0] == "reverse_connect")
+			{
+				reverse_connect = coil::toBool(v[1], "true", "false", false);
+			}
+			else if (v[0] == "send_host")
+			{
+				send_host = v[1];
+			}
+			else if (v[0] == "send_name")
+			{
+				send_name = v[1];
+			}
+			if (v[0] == "send_port")
+			{
+				std::istringstream sv(v[1]);
+				sv >> send_port;
+			}
+			else if (v[0] == "udp_port")
+			{
+				std::istringstream sv(v[1]);
+				sv >> udp_port;
+			}
     }
   }
 
@@ -720,7 +787,9 @@ int main(int argc, char *argv[])
   if (comp == nullptr)
   {
     std::cerr << "Component create failed." << std::endl;
-    abort();
+		manager->terminate();
+		manager->join();
+		return 1;
   }
 
   OpenRTMTestOut *rtc = dynamic_cast<OpenRTMTestOut *>(comp);
@@ -728,7 +797,9 @@ int main(int argc, char *argv[])
   if (rtc == nullptr)
   {
     std::cerr << "Component create failed." << std::endl;
-    abort();
+		manager->terminate();
+		manager->join();
+		return 1;
   }
 
   RTC::OutPort<RTC::TimedOctetSeq> *outOut = rtc->getOutPort();
@@ -740,21 +811,107 @@ int main(int argc, char *argv[])
   inIn->addConnectorDataListener(RTC::ConnectorDataListenerType::ON_BUFFER_WRITE,
                                 datalistener, false);
 
-  if (!connect(outOut, recv_host, recv_port, recv_name, std::string("in")))
-  {
-    std::cout << "connect error" << std::endl;
-    manager->terminate();
-    manager->join();
-    return 1;
-  }
+	if (!reverse_connect)
+	{
+		if (!port_connect(outOut, recv_host, recv_port, recv_name, std::string("in")))
+		{
+			std::cout << "connect error" << std::endl;
+			manager->terminate();
+			manager->join();
+			return 1;
+		}
 
-  if (!connect(inIn, recv_host, recv_port, recv_name, std::string("out")))
-  {
-    std::cout << "connect error" << std::endl;
-    manager->terminate();
-    manager->join();
-    return 1;
-  }
+		if (!port_connect(inIn, recv_host, recv_port, recv_name, std::string("out")))
+		{
+			std::cout << "connect error" << std::endl;
+			manager->terminate();
+			manager->join();
+			return 1;
+		}
+	}
+	else
+	{
+		OutConnListener* outConnectListener = new OutConnListener(true);
+		outOut->addConnectorListener(RTC::ConnectorListenerType::ON_CONNECT,
+			outConnectListener);
+		OutConnListener* outDisconnectListener = new OutConnListener(false);
+		outOut->addConnectorListener(RTC::ConnectorListenerType::ON_DISCONNECT,
+			outDisconnectListener);
+		OutConnListener* inConnectListener = new OutConnListener(true);
+		inIn->addConnectorListener(RTC::ConnectorListenerType::ON_CONNECT,
+			inConnectListener);
+		OutConnListener* inDisconnectListener = new OutConnListener(false);
+		inIn->addConnectorListener(RTC::ConnectorListenerType::ON_DISCONNECT,
+			inDisconnectListener);
+#ifdef WIN32
+		int sock;
+		struct sockaddr_in addr;
+		sock = socket(AF_INET, SOCK_DGRAM, 0);
+
+		addr.sin_family = AF_INET;
+		addr.sin_port = htons(udp_port);
+		addr.sin_addr.S_un.S_addr = inet_addr(recv_host.c_str());
+#else
+		int sock = socket(AF_INET, SOCK_DGRAM, 0);
+
+		struct sockaddr_in addr;
+		addr.sin_family = AF_INET;
+		addr.sin_addr.s_addr = inet_addr(recv_host.c_str());
+		addr.sin_port = htons(udp_port);
+#endif
+		char buf[100];
+
+		int size = createData(send_host, send_name, send_port, buf);
+
+		if (!shutdown)
+		{
+			for (int i = 0; i < 100; i++)
+			{
+				if (i % 10 == 0)
+				{
+					sendto(sock, buf, size, 0, (struct sockaddr *)&addr, sizeof(addr));
+				}
+				std::this_thread::sleep_for(std::chrono::seconds(1));
+				if (outConnectListener->get_info() && inConnectListener->get_info())
+				{
+					std::cout << "udp create connection" << std::endl;
+					break;
+				}
+				if (i == 99)
+				{
+					std::cout << "udp connect error" << std::endl;
+#ifdef WIN32
+					closesocket(sock);
+#else
+					close(sock);
+#endif
+					manager->terminate();
+					manager->join();
+					return 1;
+				}
+			}
+		}
+		else
+		{
+			int size = createData("", "", 0, buf);
+			sendto(sock, buf, size, 0, (struct sockaddr *)&addr, sizeof(addr));
+#ifdef WIN32
+			closesocket(sock);
+#else
+			close(sock);
+#endif
+			manager->terminate();
+			manager->join();
+			return 0;
+		}
+
+#ifdef WIN32
+		closesocket(sock);
+#else
+		close(sock);
+#endif
+
+	}
 
   if (!shutdown)
   {
