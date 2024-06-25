@@ -26,7 +26,7 @@ bool port_connect(RTC::PortBase *port1_var, const std::string &recv_host, const 
       prop["dataport.subscription_type"] = "flush";
       prop["dataport.buffer.length"] = "1";
       prop["write.full_policy"] = "overwrite";
-      if (RTC::RTC_OK == CORBA_RTCUtil::connect("test_connector", prop, port2_var.in(), port1_var->getPortRef()))
+      if (RTC::RTC_OK == CORBA_RTCUtil::connect("test_connector", prop, port1_var->getPortRef(), port2_var.in()))
       {
         return true;
       }
