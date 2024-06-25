@@ -814,6 +814,7 @@ int main(int argc, char *argv[])
 	if (!reverse_connect)
 	{
 		std::cout << "connect" << std::endl;
+		/*
 		if (!port_connect(outOut, recv_host, recv_port, recv_name, std::string("in")))
 		{
 			std::cout << "connect error" << std::endl;
@@ -823,6 +824,15 @@ int main(int argc, char *argv[])
 		}
 
 		if (!port_connect(inIn, recv_host, recv_port, recv_name, std::string("out")))
+		{
+			std::cout << "connect error" << std::endl;
+			manager->terminate();
+			manager->join();
+			return 1;
+		}
+		*/
+
+		if (!ports_connect(inIn, outOut, recv_host, recv_port, recv_name, std::string("in"), std::string("out")))
 		{
 			std::cout << "connect error" << std::endl;
 			manager->terminate();

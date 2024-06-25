@@ -372,6 +372,7 @@ InDataListener::ReturnCode InDataListener::operator()(RTC::ConnectorInfo &info,
 
   if (data.data.length() == 0)
   {
+		std::cout << "exit" << std::endl;
     m_thread = std::thread([this]
                            { exit(); });
     return NO_CHANGE;
@@ -544,7 +545,7 @@ int connect(char* buf, RTC::Manager* manager, RTC::InPortBase* inIn, RTC::OutPor
 	std::string comp_str(comp);
 
 
-
+	/*
 	if (!port_connect(inIn, address_str, udph->port, comp_str, std::string("out")))
 	{
 		std::cout << "connect error" << std::endl;
@@ -560,6 +561,15 @@ int connect(char* buf, RTC::Manager* manager, RTC::InPortBase* inIn, RTC::OutPor
 		manager->join();
 		return 1;
 	}
+	*/
+	if (!ports_connect(inIn, outOut, address_str, udph->port, comp_str, std::string("in"), std::string("out")))
+	{
+		std::cout << "connect error" << std::endl;
+		manager->terminate();
+		manager->join();
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -780,6 +790,7 @@ int main(int argc, char *argv[])
 
   std::cout << "wait" << std::endl;
   manager->join();
+	
 
   // in->exit();
   /*
@@ -797,7 +808,7 @@ int main(int argc, char *argv[])
   writing_file.close();
   */
 
-  delete datalistener;
+  //delete datalistener;
   std::cout << "finish" << std::endl;
 
   // delete in;
