@@ -542,9 +542,16 @@ int connect(char* buf, RTC::Manager* manager, RTC::InPortBase* inIn, RTC::OutPor
 	std::memcpy(comp, &buf[pos], udph->comp_length);
 	std::string comp_str(comp);
 
-
-
-	if (!port_connect(inIn, address_str, udph->port, comp_str, std::string("out")))
+	bool ret = false;
+	try
+	{
+		ret = port_connect(inIn, address_str, udph->port, comp_str, std::string("out"));
+	}
+	catch (...)
+	{
+		ret = port_connect(inIn, address_str, udph->port, comp_str, std::string("out"));
+	}
+	if (!ret)
 	{
 		std::cout << "connect error" << std::endl;
 		manager->terminate();
@@ -552,7 +559,17 @@ int connect(char* buf, RTC::Manager* manager, RTC::InPortBase* inIn, RTC::OutPor
 		return 1;
 	}
 
-	if (!port_connect(outOut, address_str, udph->port, comp_str, std::string("in")))
+	ret = false;
+	try
+	{
+		ret = port_connect(outOut, address_str, udph->port, comp_str, std::string("in"));
+	}
+	catch (...)
+	{
+		ret = port_connect(outOut, address_str, udph->port, comp_str, std::string("in"));
+	}
+
+	if (!ret)
 	{
 		std::cout << "connect error" << std::endl;
 		manager->terminate();
