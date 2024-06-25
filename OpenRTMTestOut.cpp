@@ -865,9 +865,10 @@ int main(int argc, char *argv[])
 
 		if (!shutdown)
 		{
-			for (int i = 0; i < 100; i++)
+			int maxCount = 200;
+			for (int i = 0; i < maxCount; i++)
 			{
-				if (i % 10 == 0)
+				if (i % 40 == 0)
 				{
 					sendto(sock, buf, size, 0, (struct sockaddr *)&addr, sizeof(addr));
 				}
@@ -877,7 +878,7 @@ int main(int argc, char *argv[])
 					std::cout << "udp create connection" << std::endl;
 					break;
 				}
-				if (i == 99)
+				if (i == maxCount-1)
 				{
 					std::cout << "udp connect error" << std::endl;
 #ifdef WIN32
